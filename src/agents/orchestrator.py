@@ -26,6 +26,7 @@ def orchestrator_classify(state: AgentState) -> AgentState:
         )
         data = Classification.model_validate_json(response.choices[0].message.content)
         state["classification"] = data.model_dump()
+        state["urgency_signal"] = data.urgency
     except Exception as e:
         state["errors"].append(f"orchestrator: {e}")
         state["classification"] = {
@@ -34,5 +35,6 @@ def orchestrator_classify(state: AgentState) -> AgentState:
             "urgency": "medium",
             "summary": "Classification failed.",
         }
+        state["urgency_signal"] = "medium"
     state["latencies"]["orchestrator"] = round(time.time() - start, 2)
     return state

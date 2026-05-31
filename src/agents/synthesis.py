@@ -28,6 +28,8 @@ def synthesize_verdict(state: AgentState) -> AgentState:
                     "role": "user",
                     "content": (
                         f"Original letter:\n{state['letter_text']}\n\n"
+                        f"Urgency signal from classifier: {state.get('urgency_signal', 'medium')} "
+                        f"(use as a tiebreaker — 'high' leans urgent, 'low' leans handle_yourself)\n\n"
                         f"Specialist findings:\n{findings_text}\n\n"
                         "Produce a triage verdict."
                     ),

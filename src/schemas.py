@@ -53,6 +53,7 @@ class LawyerRecommendation(BaseModel):
 class AgentState(TypedDict):
     letter_text: str
     classification: Optional[dict]
+    urgency_signal: str              # "low"|"medium"|"high" — set by orchestrator, read by synthesis
     specialist_findings: list[dict]
     verdict: Optional[dict]
     draft_response: Optional[dict]

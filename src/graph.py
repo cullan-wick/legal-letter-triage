@@ -44,6 +44,7 @@ def run(letter_text: str) -> AgentState:
     initial_state: AgentState = {
         "letter_text": letter_text,
         "classification": None,
+        "urgency_signal": "medium",
         "specialist_findings": [],
         "verdict": None,
         "draft_response": None,

@@ -10,6 +10,7 @@ LETTER = pathlib.Path("samples/debt_collection.txt").read_text()
 result = run(LETTER)
 
 assert result["classification"] is not None, "Classification missing"
+assert result["urgency_signal"] in ("low", "medium", "high"), "urgency_signal missing or invalid"
 assert result["verdict"] is not None, "Verdict missing"
 assert result["verdict"]["verdict"] in ("handle_yourself", "consult_lawyer", "urgent")
 assert result["draft_response"] is not None, "Draft response missing"
