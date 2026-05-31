@@ -1,6 +1,12 @@
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from src.agents.lawyer_finder import find_lawyer, recommend_lawyer
+
+
+def llm_response(content: str) -> SimpleNamespace:
+    return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=content))])
 
 
 class LawyerFinderTest(unittest.TestCase):
@@ -41,7 +47,7 @@ class LawyerFinderTest(unittest.TestCase):
         self.assertIn("New York", recommendation["estimated_cost_range"])
         self.assertIn("may not be necessary immediately", recommendation["urgency_guidance"])
 
-    def test_find_lawyer_updates_state_without_live_search(self) -> None:
+    def test_find_lawyer_uses_live_model(self) -> None:
         state = {
             "letter_text": "Sample debt collection letter.",
             "classification": {"letter_type": "debt_collection", "jurisdiction": "CA", "urgency": "medium"},
@@ -54,14 +60,49 @@ class LawyerFinderTest(unittest.TestCase):
             "errors": [],
         }
 
-        result = find_lawyer(state)
+        with patch(
+            "src.agents.lawyer_finder._create_completion",
+            return_value=llm_response(
+                '{"lawyer_type":"Consumer protection attorney","reason":"Live recommendation tailored to debt collection.",'
+                '"questions_to_ask":["Can I request debt validation?","Is there a response deadline?"],'
+                '"estimated_cost_range":"Ask about legal aid and limited-scope consults.",'
+                '"legal_help_categories":["consumer protection attorney","debt defense legal aid"],'
+                '"documents_to_prepare":["Collection letter","Payment records"],'
+                '"urgency_guidance":"Schedule a consultation before the earliest deadline.",'
+                '"jurisdiction_note":"California referral services may help locate consumer law assistance."}'
+            ),
+        ) as create:
+            result = find_lawyer(state)
+
         recommendation = result["lawyer_recommendation"]
 
+        create.assert_called_once()
         self.assertIsNotNone(recommendation)
+        self.assertEqual(recommendation["lawyer_type"], "Consumer protection attorney")
         self.assertIn("legal_help_categories", recommendation)
         self.assertIn("documents_to_prepare", recommendation)
         self.assertIn("urgency_guidance", recommendation)
         self.assertIn("lawyer_finder", result["latencies"])
+        self.assertEqual(result["errors"], [])
+
+    def test_find_lawyer_falls_back_when_live_model_fails(self) -> None:
+        state = {
+            "letter_text": "Sample debt collection letter.",
+            "classification": {"letter_type": "debt_collection", "jurisdiction": "CA", "urgency": "medium"},
+            "urgency_signal": "medium",
+            "specialist_findings": [],
+            "verdict": {"verdict": "consult_lawyer", "reason": "Debt collection deadline."},
+            "draft_response": None,
+            "lawyer_recommendation": None,
+            "latencies": {},
+            "errors": [],
+        }
+
+        with patch("src.agents.lawyer_finder._create_completion", side_effect=RuntimeError("model down")):
+            result = find_lawyer(state)
+
+        self.assertIn("Consumer debt defense", result["lawyer_recommendation"]["lawyer_type"])
+        self.assertIn("lawyer_finder: model down", result["errors"])
 
 
 if __name__ == "__main__":

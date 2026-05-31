@@ -1,5 +1,7 @@
 import unittest
+from types import SimpleNamespace
 from typing import Optional
+from unittest.mock import patch
 
 from src.agents.synthesis import synthesize, synthesize_verdict
 
@@ -22,6 +24,10 @@ def finding(
         "needs_lawyer": needs_lawyer,
         "error": error,
     }
+
+
+def llm_response(content: str) -> SimpleNamespace:
+    return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=content))])
 
 
 class SynthesisTest(unittest.TestCase):
@@ -124,7 +130,7 @@ class SynthesisTest(unittest.TestCase):
         self.assertIn("Specialist checks", verdict["reason"])
         self.assertEqual(verdict["urgent_deadlines"], [])
 
-    def test_synthesize_verdict_updates_state_without_live_model(self) -> None:
+    def test_synthesize_verdict_uses_live_model(self) -> None:
         state = {
             "letter_text": "Sample employment warning.",
             "classification": {"letter_type": "employment_warning", "jurisdiction": "WA", "urgency": "medium"},
@@ -139,10 +145,42 @@ class SynthesisTest(unittest.TestCase):
             "errors": [],
         }
 
-        result = synthesize_verdict(state)
+        with patch(
+            "src.agents.synthesis._create_completion",
+            return_value=llm_response(
+                '{"verdict":"consult_lawyer","reason":"Live synthesis found signing risk.",'
+                '"next_steps":["Do not sign yet.","Ask an employment lawyer to review the release."],'
+                '"urgent_deadlines":[]}'
+            ),
+        ) as create:
+            result = synthesize_verdict(state)
+
+        create.assert_called_once()
+        self.assertEqual(result["verdict"]["verdict"], "consult_lawyer")
+        self.assertIn("Live synthesis", result["verdict"]["reason"])
+        self.assertIn("synthesis", result["latencies"])
+        self.assertEqual(result["errors"], [])
+
+    def test_synthesize_verdict_falls_back_when_live_model_fails(self) -> None:
+        state = {
+            "letter_text": "Sample employment warning.",
+            "classification": {"letter_type": "employment_warning", "jurisdiction": "WA", "urgency": "medium"},
+            "urgency_signal": "medium",
+            "specialist_findings": [
+                finding("rights", key_points=["Signing a release can affect future claims."], needs_lawyer=True)
+            ],
+            "verdict": None,
+            "draft_response": None,
+            "lawyer_recommendation": None,
+            "latencies": {},
+            "errors": [],
+        }
+
+        with patch("src.agents.synthesis._create_completion", side_effect=RuntimeError("model down")):
+            result = synthesize_verdict(state)
 
         self.assertEqual(result["verdict"]["verdict"], "consult_lawyer")
-        self.assertIn("synthesis", result["latencies"])
+        self.assertIn("synthesis: model down", result["errors"])
 
 
 if __name__ == "__main__":
