@@ -26,7 +26,7 @@ EXPECTED_TRAJECTORY = [
 # ── Dataset with ground truth reference answers ───────────────────────────────
 
 DATASET = weave.Dataset(
-    name="legal-letter-triage-samples-v2",
+    name="legal-letter-triage-samples-v3",
     rows=[
         {
             "id": "debt-collection",
@@ -70,6 +70,64 @@ DATASET = weave.Dataset(
                                       "synthesis", "response_drafter"],
             "expected_verdict_family": ["handle_yourself", "consult_lawyer"],
             "expected_letter_type_keyword": "employment",
+        },
+        {
+            "id": "cease-and-desist",
+            "letter_text": pathlib.Path("samples/cease_and_desist.txt").read_text(),
+            "reference": (
+                "verdict: urgent or consult_lawyer. "
+                "Deadline: 7 days to remove infringing content and provide written confirmation. "
+                "Rights: recipient has the right to challenge the claim if the use was licensed, fair use, or the trademark claim is invalid. "
+                "Risk: lawsuit for copyright infringement with statutory damages up to $150,000 per work; injunction; attorney's fees. "
+                "Recipient should immediately preserve all content, consult an IP lawyer, and respond in writing within 7 days without admitting liability."
+            ),
+            "reference_trajectory": EXPECTED_TRAJECTORY,
+            "expected_verdict_family": ["consult_lawyer", "urgent"],
+            "expected_letter_type_keyword": "cease",
+        },
+        {
+            "id": "security-deposit-dispute",
+            "letter_text": pathlib.Path("samples/security_deposit_dispute.txt").read_text(),
+            "reference": (
+                "verdict: handle_yourself or consult_lawyer. "
+                "Deadline: state law deadline to dispute deductions (typically 14-30 days depending on jurisdiction). "
+                "Rights: recipient can dispute each deduction in writing; landlord may owe double or triple the wrongfully withheld amount plus attorney's fees depending on jurisdiction. "
+                "Risk: losing the right to dispute if the deadline passes; forfeiting $1,875 in deductions. "
+                "Recipient should review deductions item by item, gather move-out photos, and send a written dispute by certified mail."
+            ),
+            "reference_trajectory": ["orchestrator", "risk", "rights", "obligations",
+                                      "synthesis", "response_drafter"],
+            "expected_verdict_family": ["handle_yourself", "consult_lawyer"],
+            "expected_letter_type_keyword": "deposit",
+        },
+        {
+            "id": "hoa-violation",
+            "letter_text": pathlib.Path("samples/hoa_violation.txt").read_text(),
+            "reference": (
+                "verdict: consult_lawyer or handle_yourself. "
+                "Deadline: 30 days to cure violations and pay $225 fine; 15 days to request a hearing. "
+                "Rights: recipient can request a board hearing within 15 days to dispute the violation notice. "
+                "Risk: continuing fines of $50/week, lien on property, legal action by HOA. "
+                "Recipient should request a hearing in writing within 15 days, submit an ARC application for retroactive approval, and document the current state of the property."
+            ),
+            "reference_trajectory": ["orchestrator", "risk", "rights", "obligations",
+                                      "synthesis", "response_drafter"],
+            "expected_verdict_family": ["handle_yourself", "consult_lawyer"],
+            "expected_letter_type_keyword": "hoa",
+        },
+        {
+            "id": "medical-debt",
+            "letter_text": pathlib.Path("samples/medical_debt.txt").read_text(),
+            "reference": (
+                "verdict: consult_lawyer or handle_yourself. "
+                "Deadline: 30 days to dispute the debt in writing; 10 days to request a payment plan. "
+                "Rights: recipient has 30 days to dispute the debt or request validation; collector must cease collection until verification is provided; recipient can request charity care from original provider. "
+                "Risk: credit bureau reporting, civil lawsuit, wage garnishment, bank levy. "
+                "Recipient should verify the debt is accurate, check if insurance should have covered it, and send a written dispute or validation request if anything is unclear."
+            ),
+            "reference_trajectory": EXPECTED_TRAJECTORY,
+            "expected_verdict_family": ["handle_yourself", "consult_lawyer"],
+            "expected_letter_type_keyword": "debt",
         },
     ],
 )
@@ -222,7 +280,7 @@ async def main():
     weave.init("legal-letter-triage")
 
     evaluation = weave.Evaluation(
-        name="legal-letter-triage-eval-v2",
+        name="legal-letter-triage-eval-v3",
         dataset=DATASET,
         scorers=[
             llm_judge_quality,
