@@ -1,26 +1,27 @@
 /* ============================================================
    LetterLens Web — Analyzing view (horizontal agent pipeline)
    ============================================================ */
-const { useState, useEffect, useRef } = React;
-
 const FLOW_GAP = 240;
 
 function buildTimelineWeb(sample) {
-  const L = sample.latencies;
+  const latency = (id, fallback = 480) => {
+    const value = sample.latencies && sample.latencies[id];
+    return Number.isFinite(value) ? Math.max(value, 0) : fallback;
+  };
   const showLawyer = ['consult_lawyer', 'urgent'].includes(sample.verdict.value);
   const seg = {};
-  seg.orchestrator = { start: 0, end: L.orchestrator };
-  let t = L.orchestrator + FLOW_GAP;
+  seg.orchestrator = { start: 0, end: latency('orchestrator') };
+  let t = seg.orchestrator.end + FLOW_GAP;
   const s = t;
-  seg.risk = { start: s, end: s + L.risk };
-  seg.rights = { start: s, end: s + L.rights };
-  seg.obligations = { start: s, end: s + L.obligations };
+  seg.risk = { start: s, end: s + latency('risk') };
+  seg.rights = { start: s, end: s + latency('rights') };
+  seg.obligations = { start: s, end: s + latency('obligations') };
   t = Math.max(seg.risk.end, seg.rights.end, seg.obligations.end) + FLOW_GAP;
-  seg.synthesis = { start: t, end: t + L.synthesis };
+  seg.synthesis = { start: t, end: t + latency('synthesis') };
   t = seg.synthesis.end + FLOW_GAP;
-  seg.response_drafter = { start: t, end: t + L.response_drafter };
+  seg.response_drafter = { start: t, end: t + latency('response_drafter') };
   t = seg.response_drafter.end + FLOW_GAP;
-  if (showLawyer) { seg.lawyer_finder = { start: t, end: t + L.lawyer_finder }; t = seg.lawyer_finder.end; }
+  if (showLawyer) { seg.lawyer_finder = { start: t, end: t + latency('lawyer_finder') }; t = seg.lawyer_finder.end; }
   return { seg, total: t, showLawyer };
 }
 
@@ -29,7 +30,7 @@ function statusOf(seg, elapsed) {
   if (elapsed >= seg.start) return 'run';
   return 'pending';
 }
-const fmtMs = (ms) => `${Math.round(ms)} ms`;
+const fmtMs = (ms) => `${Math.round(Number.isFinite(ms) ? ms : 0)} ms`;
 
 function PNode({ id, seg, elapsed, sample, sm }) {
   const m = AGENTS[id];
@@ -47,11 +48,11 @@ function PNode({ id, seg, elapsed, sample, sm }) {
 }
 
 function WebAnalyzing({ sample, speed, onDone }) {
-  const tl = useRef(buildTimelineWeb(sample)).current;
-  const [elapsed, setElapsed] = useState(0);
-  const doneRef = useRef(false);
+  const tl = React.useRef(buildTimelineWeb(sample)).current;
+  const [elapsed, setElapsed] = React.useState(0);
+  const doneRef = React.useRef(false);
 
-  useEffect(() => {
+  React.useEffect(() => {
     const t0 = performance.now();
     let stopped = false;
     const iv = setInterval(() => {

@@ -10,14 +10,15 @@
    • Set apiUrl = "<url>"  -> POSTs the letter to your backend and renders
                               the real agent output via adaptTriageState().
 
-   Your backend should expose run_triage() (src/graph.py) over HTTP and
+   Your backend should expose run() (src/graph.py) over HTTP and
    return the TriageState dict (src/schemas.py) as JSON. See README.md in
    design_handoff_letterlens/ for the full contract.
    ============================================================ */
 
 window.LetterLensConfig = {
   // ── set this to your endpoint to switch from mock to live agents ──
-  apiUrl: null,                 // e.g. "https://your-host/api/triage"
+  apiUrl: new URLSearchParams(window.location.search).get('apiUrl') || null,
+  // e.g. open with ?apiUrl=http://localhost:8000/api/triage
   // optional: extra headers (auth tokens, etc.)
   headers: {},
 };
@@ -25,13 +26,29 @@ window.LetterLensConfig = {
 /* ---- letter-type → presentation (icon + accent tones) ----
    Keys match Classification.letter_type from src/agents/orchestrator.py. */
 const LETTER_TYPE_META = {
+  'debt_collection':    { label: 'Debt collection',    tone: '#b06a4f', toneBg: '#f6ece4', icon: I.cash },
   'debt collection':    { label: 'Debt collection',    tone: '#b06a4f', toneBg: '#f6ece4', icon: I.cash },
+  'eviction':           { label: 'Housing / eviction', tone: '#c2564a', toneBg: '#f9e7e3', icon: I.home },
+  'housing':            { label: 'Housing / eviction', tone: '#c2564a', toneBg: '#f9e7e3', icon: I.home },
   'housing / eviction': { label: 'Housing / eviction', tone: '#c2564a', toneBg: '#f9e7e3', icon: I.home },
+  'employment_warning': { label: 'Employment',         tone: '#a07d34', toneBg: '#f4eedb', icon: I.briefcase },
   'employment':         { label: 'Employment',         tone: '#a07d34', toneBg: '#f4eedb', icon: I.briefcase },
+  'general':            { label: 'General legal letter', tone: '#4a6aa8', toneBg: '#e9eef8', icon: I.search },
+  'unknown':            { label: 'General legal letter', tone: '#4a6aa8', toneBg: '#e9eef8', icon: I.search },
   'general legal letter': { label: 'General legal letter', tone: '#4a6aa8', toneBg: '#e9eef8', icon: I.search },
 };
 const typeMeta = (lt) => LETTER_TYPE_META[(lt || '').toLowerCase()] || LETTER_TYPE_META['general legal letter'];
 const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+const normalizeLatencies = (latencies = {}) => {
+  const vals = Object.values(latencies).filter((v) => typeof v === 'number');
+  const secondsShape = vals.length > 0 && vals.every((v) => v < 100);
+  return Object.fromEntries(
+    Object.entries(latencies).map(([key, value]) => [
+      key,
+      typeof value === 'number' && secondsShape ? value * 1000 : value,
+    ])
+  );
+};
 
 /* ============================================================
    adaptTriageState — REAL backend TriageState (src/schemas.py)
@@ -77,12 +94,13 @@ function adaptTriageState(state, letterText) {
 
   return {
     id: 'live',
+    mode: 'live',
     label: meta.label,
     sub: c.summary || '',
     icon: meta.icon, tone: meta.tone, toneBg: meta.toneBg,
     text: letterText,
     classification: {
-      letter_type: cap(c.letter_type) || 'General legal letter',
+      letter_type: meta.label,
       jurisdiction: c.jurisdiction && c.jurisdiction !== 'unknown' ? c.jurisdiction : 'Unknown',
       urgency: c.urgency || 'medium',
       summary: c.summary || '',
@@ -104,7 +122,7 @@ function adaptTriageState(state, letterText) {
       urgencyGuidance: law.urgency_guidance || '',
       jurisdictionNote: law.jurisdiction_note || '',
     } : null,
-    latencies: state.latencies || {},
+    latencies: normalizeLatencies(state.latencies || {}),
   };
 }
 
@@ -200,7 +218,7 @@ function buildGenericTriage(text) {
   };
 
   return {
-    id: 'generic', label: meta.label, sub: `Detected a ${c.letter_type} with ${c.urgency} urgency.`,
+    id: 'generic', mode: 'mock', label: meta.label, sub: `Detected a ${c.letter_type} with ${c.urgency} urgency.`,
     icon: meta.icon, tone: meta.tone, toneBg: meta.toneBg, text,
     classification: { letter_type: meta.label, jurisdiction: c.jurisdiction, urgency: c.urgency, summary: `This reads as a ${c.letter_type} with ${c.urgency} urgency.` },
     findings: {
@@ -234,7 +252,7 @@ Sincerely,
 function mockTriage(text) {
   // Re-use the lovingly hand-written sample results when the canned text is used…
   const known = (window.SAMPLES || []).find((s) => s.text.trim() === (text || '').trim());
-  if (known) return known;
+  if (known) return { ...known, mode: 'mock' };
   // …otherwise classify the pasted letter locally.
   return buildGenericTriage(text);
 }

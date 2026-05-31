@@ -1,8 +1,6 @@
 /* ============================================================
    LetterLens Web — App shell (top bar, composer, dock, flow)
    ============================================================ */
-const { useState } = React;
-
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "accent": "#3f6fb0",
   "verdictColor": true,
@@ -19,10 +17,10 @@ const ACCENTS = {
 };
 const SPEED = { calm: 0.55, default: 1, fast: 1.9 };
 
-function Composer({ onAnalyze }) {
-  const [text, setText] = useState('');
-  const [active, setActive] = useState(null);
-  const [busy, setBusy] = useState(false);
+function Composer({ onAnalyze, liveMode }) {
+  const [text, setText] = React.useState('');
+  const [active, setActive] = React.useState(null);
+  const [busy, setBusy] = React.useState(false);
   const pick = (s) => { setText(s.text); setActive(s.id); };
   const go = async () => {
     if (!text.trim() || busy) return;
@@ -43,7 +41,7 @@ function Composer({ onAnalyze }) {
             placeholder="Paste the full text of the letter here — names, dates, amounts, and all."></textarea>
         </div>
         <div className="compose-actions">
-          <div className="reassure"><span>Private</span><i></i><span>Plain-English</span><i></i><span>Not legal advice</span></div>
+          <div className="reassure"><span>{liveMode ? 'Configured API' : 'Private mock'}</span><i></i><span>Plain-English</span><i></i><span>Not legal advice</span></div>
           <button className="btn-primary" disabled={!text.trim() || busy} onClick={go}>{busy ? I.activity : I.search} {busy ? 'Reading…' : 'Analyze letter'}</button>
         </div>
 
@@ -65,6 +63,7 @@ function Composer({ onAnalyze }) {
 }
 
 function LetterDock({ sample, onNew }) {
+  const liveMode = sample.mode === 'live';
   return (
     <div className="dock">
       <div className="dock-head">
@@ -81,16 +80,17 @@ function LetterDock({ sample, onNew }) {
         </div>
       </div>
       <div className="doc-paper">{sample.text}</div>
-      <div className="doc-foot">{I.lock} Stays on this page · nothing is sent anywhere</div>
+      <div className="doc-foot">{I.lock} {liveMode ? 'Sent to your configured triage API' : 'Local mock mode · nothing is sent anywhere'}</div>
     </div>
   );
 }
 
 function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
-  const [stage, setStage] = useState('input'); // input | analyzing | results
-  const [sample, setSample] = useState(null);
-  const [showTrace, setShowTrace] = useState(false);
+  const [stage, setStage] = React.useState('input'); // input | analyzing | results
+  const [sample, setSample] = React.useState(null);
+  const [showTrace, setShowTrace] = React.useState(false);
+  const liveMode = Boolean(window.LetterLensConfig?.apiUrl);
 
   const ac = ACCENTS[t.accent] || ACCENTS["#3f6fb0"];
   const verdictCls = sample && t.verdictColor ? VERDICTS[sample.verdict.value].cls : 'mono-verdict';
@@ -110,7 +110,7 @@ function App() {
   const twoPane = stage === 'results';
 
   return (
-    <div className={`app density-${t.density} ${verdictCls}`} style={rootStyle}>
+    <div className={`app stage-${stage} density-${t.density} ${verdictCls}`} style={rootStyle}>
       <div className="topbar">
         <div className="brand" onClick={restart}>
           <span className="lens"></span>
@@ -130,7 +130,7 @@ function App() {
       <div className={`workspace ${twoPane ? 'two' : ''}`}>
         {twoPane && <LetterDock sample={sample} onNew={restart} />}
         <div className="main">
-          {stage === 'input' && <Composer onAnalyze={start} />}
+          {stage === 'input' && <Composer onAnalyze={start} liveMode={liveMode} />}
           {stage === 'analyzing' && <WebAnalyzing sample={sample} speed={SPEED[t.revealSpeed] || 1} onDone={() => setStage('results')} />}
           {stage === 'results' && <WebResults sample={sample} showTrace={showTrace} />}
         </div>

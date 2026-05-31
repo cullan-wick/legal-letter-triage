@@ -27,8 +27,12 @@ function FindingCard({ id, data }) {
 }
 
 function WebResults({ sample, showTrace }) {
-  const [copied, setCopied] = useState(false);
-  const [steps, setSteps] = useState(() => sample.verdict.next_steps.map(() => false));
+  const [copied, setCopied] = React.useState(false);
+  const [steps, setSteps] = React.useState(() => sample.verdict.next_steps.map(() => false));
+  const msFor = (key) => {
+    const value = sample.latencies && sample.latencies[key];
+    return Number.isFinite(value) ? Math.max(value, 0) : 0;
+  };
 
   const v = VERDICTS[sample.verdict.value];
   const c = sample.classification;
@@ -41,8 +45,8 @@ function WebResults({ sample, showTrace }) {
 
   const traceOrder = ['orchestrator', 'risk', 'rights', 'obligations', 'synthesis', 'response_drafter',
     ...(sample.lawyer ? ['lawyer_finder'] : [])];
-  const totalMs = traceOrder.reduce((a, k) => a + sample.latencies[k], 0);
-  const maxLat = Math.max(...traceOrder.map((k) => sample.latencies[k]));
+  const totalMs = traceOrder.reduce((a, k) => a + msFor(k), 0);
+  const maxLat = Math.max(1, ...traceOrder.map(msFor));
 
   const copyDraft = () => {
     const text = `Subject: ${sample.draft.subject}\n\n${sample.draft.body}`;
@@ -75,7 +79,7 @@ function WebResults({ sample, showTrace }) {
             <div className="cal">{I.calendar}</div>
             <div className="eyebrow">Don’t miss this</div>
             <p>{primaryDeadline}</p>
-            <small>{urgentDeadlines.length > 0 ? ‘flagged by the synthesis agent’ : ‘flagged by the obligations agent’}</small>
+            <small>{urgentDeadlines.length > 0 ? 'flagged by the synthesis agent' : 'flagged by the obligations agent'}</small>
           </div>
         ) : (
           <div className="dates">
@@ -170,8 +174,8 @@ function WebResults({ sample, showTrace }) {
           {traceOrder.map((k) => (
             <div className="trace-row" key={k} style={{ '--tr': AGENTS[k].ink }}>
               <span className="nm">{AGENTS[k].name.toLowerCase()}</span>
-              <span className="bar"><i style={{ width: `${(sample.latencies[k] / maxLat) * 100}%` }}></i></span>
-              <span className="ms">{Math.round(sample.latencies[k])}ms</span>
+              <span className="bar"><i style={{ width: `${(msFor(k) / maxLat) * 100}%` }}></i></span>
+              <span className="ms">{Math.round(msFor(k))}ms</span>
             </div>
           ))}
           <div className="trace-total"><span>orchestrator → specialists → synthesis → draft{sample.lawyer ? ' → referral' : ''}</span><b>{(totalMs / 1000).toFixed(2)}s total</b></div>

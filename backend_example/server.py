@@ -1,4 +1,4 @@
-"""Minimal FastAPI wrapper around run_triage() for the LetterLens web UI.
+"""Minimal FastAPI wrapper around run() for the LetterLens web UI.
 
 Run with:
     uvicorn backend_example.server:app --reload
@@ -9,7 +9,7 @@ Then set apiUrl in triage-api.jsx:
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from src.graph import run_triage
+from src.graph import run
 
 app = FastAPI(title="LetterLens API")
 
@@ -27,4 +27,4 @@ class TriageRequest(BaseModel):
 
 @app.post("/api/triage")
 def triage(req: TriageRequest):
-    return run_triage(req.letter_text)
+    return run(req.letter_text)
