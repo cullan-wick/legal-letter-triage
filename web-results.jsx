@@ -178,6 +178,16 @@ function WebResults({ sample, showTrace }) {
                   </ul>
                 </div>
               )}
+              {sample.lawyer.referrals && sample.lawyer.referrals.length > 0 && (
+                <div className="lawyer-referrals">
+                  <span className="eyebrow">Referral resources (live)</span>
+                  <ul>
+                    {sample.lawyer.referrals.map((r, i) => (
+                      <li key={i}><a href={r.url} target="_blank" rel="noopener noreferrer">{r.title}</a></li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
             <ul className="qlist">
               <span className="eyebrow">Questions to ask</span>

@@ -6,6 +6,7 @@ import json
 import time
 
 from src.schemas import AgentState, LawyerRecommendation
+from src.tools.search import search
 
 try:
     import weave  # type: ignore
@@ -233,6 +234,28 @@ def _create_completion(messages: list[dict]):
     )
 
 
+@weave.op()
+def search_legal_referrals(letter_type: str, jurisdiction: str, lawyer_type: str) -> list[dict]:
+    """Live Tavily search for real referral resources.
+
+    Fail-soft: returns [] on any failure (no key, timeout, network), so the recommendation
+    degrades to the curated baseline instead of crashing the demo. Wrapped as a weave op so
+    the external tool call is visible in the Weave trace.
+    """
+    location = (
+        jurisdiction
+        if jurisdiction and jurisdiction.strip().lower() not in ("unknown", "unspecified", "")
+        else "United States"
+    )
+    query = f"free or low-cost {lawyer_type} legal aid and referral services in {location}"
+    result = search(query)
+    referrals: list[dict] = []
+    for item in result.get("results", [])[:3]:
+        if isinstance(item, dict) and item.get("url"):
+            referrals.append({"title": item.get("title") or item["url"], "url": item["url"]})
+    return referrals
+
+
 def recommend_lawyer_live(classification: dict, verdict: dict) -> dict:
     fallback = recommend_lawyer(classification, verdict)
     response = _create_completion(
@@ -263,7 +286,13 @@ def recommend_lawyer_live(classification: dict, verdict: dict) -> dict:
         ]
     )
     data = json.loads(response.choices[0].message.content)
-    return _validate_live_recommendation(data)
+    recommendation = _validate_live_recommendation(data)
+    recommendation["live_referrals"] = search_legal_referrals(
+        _normalize_letter_type(classification.get("letter_type", "general")),
+        classification.get("jurisdiction", "unknown"),
+        recommendation.get("lawyer_type", ""),
+    )
+    return recommendation
 
 
 @weave.op()
@@ -272,6 +301,13 @@ def find_lawyer(state: AgentState) -> AgentState:
     start = time.time()
     classification = state.get("classification", {}) or {}
     verdict = state.get("verdict", {}) or {}
-    state["lawyer_recommendation"] = recommend_lawyer_live(classification, verdict)
+    try:
+        recommendation = recommend_lawyer_live(classification, verdict)
+    except Exception as exc:
+        # Fail soft to the deterministic baseline rather than crashing the graph mid-demo.
+        recommendation = recommend_lawyer(classification, verdict)
+        recommendation["live_referrals"] = []
+        recommendation["error"] = str(exc)
+    state["lawyer_recommendation"] = recommendation
     state["latencies"]["lawyer_finder"] = round(time.time() - start, 2)
     return state
