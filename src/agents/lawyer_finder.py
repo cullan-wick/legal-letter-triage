@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import time
 
-from src.schemas import AgentState
+from src.schemas import AgentState, LawyerRecommendation
 
 try:
     import weave  # type: ignore
@@ -211,13 +212,66 @@ def recommend_lawyer(classification: dict, verdict: dict) -> dict:
     }
 
 
+def _validate_live_recommendation(data: dict) -> dict:
+    base = LawyerRecommendation.model_validate(data).model_dump()
+    return {
+        **base,
+        "legal_help_categories": list(data.get("legal_help_categories", [])),
+        "documents_to_prepare": list(data.get("documents_to_prepare", [])),
+        "urgency_guidance": str(data.get("urgency_guidance", "")),
+        "jurisdiction_note": str(data.get("jurisdiction_note", "")),
+    }
+
+
+def _create_completion(messages: list[dict]):
+    from src.config import MODEL, client
+
+    return client.chat.completions.create(
+        model=MODEL,
+        messages=messages,
+        response_format={"type": "json_object"},
+    )
+
+
+def recommend_lawyer_live(classification: dict, verdict: dict) -> dict:
+    fallback = recommend_lawyer(classification, verdict)
+    response = _create_completion(
+        [
+            {
+                "role": "system",
+                "content": (
+                    "You are the live lawyer-finder agent in a legal-letter triage system. "
+                    "Recommend what kind of legal help to seek based on the letter type, jurisdiction, and verdict. "
+                    "This is legal information, not legal advice. Do not invent attorney names, claim to browse, "
+                    "or imply that a specific lawyer has been found. "
+                    "Respond ONLY with valid JSON with these exact keys: "
+                    '{"lawyer_type":str,"reason":str,"questions_to_ask":[str],'
+                    '"estimated_cost_range":str,"legal_help_categories":[str],'
+                    '"documents_to_prepare":[str],"urgency_guidance":str,"jurisdiction_note":str}. '
+                    "Include cost/referral notes, practical documents to prepare, and urgency guidance."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Classification:\n{classification}\n\n"
+                    f"Verdict:\n{verdict}\n\n"
+                    f"Deterministic baseline to improve or preserve:\n{fallback}\n\n"
+                    "Produce the legal help recommendation."
+                ),
+            },
+        ]
+    )
+    data = json.loads(response.choices[0].message.content)
+    return _validate_live_recommendation(data)
+
+
 @weave.op()
 def find_lawyer(state: AgentState) -> AgentState:
     """Runs only when verdict is consult_lawyer or urgent."""
     start = time.time()
-    state["lawyer_recommendation"] = recommend_lawyer(
-        state.get("classification", {}) or {},
-        state.get("verdict", {}) or {},
-    )
+    classification = state.get("classification", {}) or {}
+    verdict = state.get("verdict", {}) or {}
+    state["lawyer_recommendation"] = recommend_lawyer_live(classification, verdict)
     state["latencies"]["lawyer_finder"] = round(time.time() - start, 2)
     return state

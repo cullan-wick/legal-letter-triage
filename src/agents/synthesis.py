@@ -197,13 +197,81 @@ def synthesize(
     return output.model_dump()
 
 
+def _findings_text(specialist_findings: list[dict]) -> str:
+    return "\n\n".join(
+        (
+            f"[{finding.get('agent_name', 'unknown').upper()}]\n"
+            f"Summary: {finding.get('summary', '')}\n"
+            f"Key points: {finding.get('key_points', [])}\n"
+            f"Deadlines: {finding.get('deadlines', [])}\n"
+            f"Confidence: {finding.get('confidence', 'medium')}\n"
+            f"Needs lawyer: {finding.get('needs_lawyer', False)}\n"
+            f"Error: {finding.get('error')}"
+        )
+        for finding in specialist_findings
+    )
+
+
+def _create_completion(messages: list[dict]):
+    from src.config import MODEL, client
+
+    return client.chat.completions.create(
+        model=MODEL,
+        messages=messages,
+        response_format={"type": "json_object"},
+    )
+
+
+def synthesize_live(
+    letter_text: str,
+    classification: dict,
+    specialist_findings: list[dict],
+    urgency_signal: str = "medium",
+) -> dict:
+    fallback = synthesize(classification, specialist_findings, urgency_signal)
+    response = _create_completion(
+        [
+            {
+                "role": "system",
+                "content": (
+                    "You are the live synthesis agent in a legal-letter triage system. "
+                    "Use the classifier and specialist findings to produce the final triage verdict. "
+                    "This is legal information, not legal advice. "
+                    "Respond ONLY with valid JSON matching this schema: "
+                    '{"verdict":"handle_yourself"|"consult_lawyer"|"urgent",'
+                    '"reason":str,"next_steps":[str],"urgent_deadlines":[str]}. '
+                    "Do not weaken urgency below the deterministic baseline unless the specialist findings clearly justify it. "
+                    "When specialist checks failed or are incomplete, default to consult_lawyer."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Original letter:\n{letter_text}\n\n"
+                    f"Classification:\n{classification}\n\n"
+                    f"Urgency signal: {urgency_signal}\n\n"
+                    f"Specialist findings:\n{_findings_text(specialist_findings)}\n\n"
+                    f"Deterministic baseline to respect or strengthen:\n{fallback}\n\n"
+                    "Produce the final synthesis verdict."
+                ),
+            },
+        ]
+    )
+    data = SynthesisOutput.model_validate_json(response.choices[0].message.content)
+    return data.model_dump()
+
+
 @weave.op()
 def synthesize_verdict(state: AgentState) -> AgentState:
     start = time.time()
-    state["verdict"] = synthesize(
-        state.get("classification", {}) or {},
-        state.get("specialist_findings", []),
-        state.get("urgency_signal", "medium"),
+    classification = state.get("classification", {}) or {}
+    specialist_findings = state.get("specialist_findings", [])
+    urgency_signal = state.get("urgency_signal", "medium")
+    state["verdict"] = synthesize_live(
+        state.get("letter_text", ""),
+        classification,
+        specialist_findings,
+        urgency_signal,
     )
     state["latencies"]["synthesis"] = round(time.time() - start, 2)
     return state
