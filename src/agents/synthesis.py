@@ -146,9 +146,9 @@ def synthesize(
     letter_type = classification.get("letter_type", "general")
     normalized_letter_type = _normalize_letter_type(letter_type)
     urgency = classification.get("urgency", urgency_signal)
-    needs_lawyer = any(
-        finding.get("needs_lawyer") for finding in specialist_findings if not finding.get("error")
-    )
+    successful_findings = [f for f in specialist_findings if not f.get("error")]
+    specialist_review_incomplete = not successful_findings
+    needs_lawyer = any(f.get("needs_lawyer") for f in successful_findings)
     deadlines = _real_deadlines(specialist_findings)
     has_urgent_signal = _has_signal(
         specialist_findings,
@@ -168,6 +168,9 @@ def synthesize(
         normalized_letter_type == "eviction" and (deadlines or needs_lawyer)
     ):
         verdict = "urgent"
+    elif specialist_review_incomplete:
+        # All specialists failed — safe default is to recommend legal review
+        verdict = "consult_lawyer"
     elif needs_lawyer or has_urgent_signal:
         verdict = "consult_lawyer"
     elif deadlines:

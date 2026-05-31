@@ -126,5 +126,19 @@ class SynthesisTest(unittest.TestCase):
         self.assertIn("synthesis", result["latencies"])
 
 
+    def test_all_failed_specialists_route_to_consult_lawyer(self) -> None:
+        """When every specialist errors, fall back to consult_lawyer — never handle_yourself."""
+        verdict = synthesize(
+            {"letter_type": "general", "jurisdiction": "unknown", "urgency": "medium"},
+            [
+                finding("risk", error="API error"),
+                finding("rights", error="API error"),
+                finding("obligations", error="API error"),
+            ],
+        )
+        self.assertEqual(verdict["verdict"], "consult_lawyer")
+        self.assertIn("consult_lawyer", verdict["verdict"])
+
+
 if __name__ == "__main__":
     unittest.main()
