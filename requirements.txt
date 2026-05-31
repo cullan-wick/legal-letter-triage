@@ -1,0 +1,10 @@
+langgraph
+langchain
+langchain-anthropic
+weave
+streamlit
+tavily-python
+pydantic
+python-dotenv
+langchain-mcp-adapters
+
