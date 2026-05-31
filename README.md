@@ -39,7 +39,7 @@ Each teammate should work on their lane branch, not directly on `main`.
 ## Setup
 
 ```bash
-python3 -m venv .venv
+python3.11 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
@@ -47,12 +47,18 @@ cp .env.example .env
 
 Fill `.env` with the keys listed in `ACCOUNT_SETUP.md`.
 
+Use Python 3.11 or newer. On this machine, the working venv was created with:
+
+```bash
+/opt/homebrew/bin/python3.13 -m venv .venv
+```
+
 ## Run Tests
 
 The initial scaffold includes a dependency-light spine test:
 
 ```bash
-python3 -m unittest tests.test_spine
+.venv/bin/python -m unittest tests.test_spine
 ```
 
 ## Run App
@@ -69,4 +75,3 @@ streamlit run app.py
 - LangGraph: orchestrate graph routing and conditional edges.
 - Tavily: optional stretch for grounded statutes and lawyer search.
 - Anthropic Claude or approved model provider: agent reasoning.
-

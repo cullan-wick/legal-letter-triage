@@ -164,3 +164,22 @@ MODEL_NAME=claude-sonnet-4-6
 
 Never commit `.env`.
 
+## Python Version
+
+Use Python 3.11 or newer. Do not use macOS's default Python 3.9 for this project; modern LangGraph/MCP packages may not resolve under it.
+
+Recommended:
+
+```bash
+python3.11 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+On the current machine, this worked:
+
+```bash
+/opt/homebrew/bin/python3.13 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```

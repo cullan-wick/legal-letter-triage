@@ -40,6 +40,9 @@ def load_settings() -> Settings:
 
 def init_weave() -> None:
     settings = load_settings()
+    if not settings.wandb_api_key:
+        return
+
     try:
         import weave  # type: ignore
     except Exception:
@@ -55,22 +58,23 @@ def traced_op(name: str) -> Callable[[F], F]:
     """Decorate a function with Weave when available and record local latency."""
 
     def decorate(func: F) -> F:
-        try:
-            import weave  # type: ignore
+        if load_settings().wandb_api_key:
+            try:
+                import weave  # type: ignore
 
-            return weave.op(name=name)(func)  # type: ignore[return-value]
-        except Exception:
+                return weave.op(name=name)(func)  # type: ignore[return-value]
+            except Exception:
+                pass
 
-            @wraps(func)
-            def wrapper(*args: Any, **kwargs: Any) -> Any:
-                start = perf_counter()
-                result = func(*args, **kwargs)
-                elapsed_ms = round((perf_counter() - start) * 1000, 2)
-                if isinstance(result, dict):
-                    result.setdefault("latency_ms", elapsed_ms)
-                return result
+        @wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            start = perf_counter()
+            result = func(*args, **kwargs)
+            elapsed_ms = round((perf_counter() - start) * 1000, 2)
+            if isinstance(result, dict):
+                result.setdefault("latency_ms", elapsed_ms)
+            return result
 
-            return wrapper  # type: ignore[return-value]
+        return wrapper  # type: ignore[return-value]
 
     return decorate
-
