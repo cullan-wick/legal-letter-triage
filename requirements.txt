@@ -1,0 +1,7 @@
+langgraph
+weave
+chainlit
+openai
+pymupdf
+python-dotenv
+pydantic

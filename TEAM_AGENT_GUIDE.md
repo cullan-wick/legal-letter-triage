@@ -8,9 +8,10 @@ The goal is simple: four people can work in parallel without stepping on each ot
 
 Read these in order:
 
-1. `ULTIMATE_HACKATHON_PLAN.md` - product strategy, scope, timeline, and demo priorities.
-2. `TEAM_AGENT_GUIDE.md` - team workflow, file ownership, branch rules, and handoff protocol.
-3. `README.md` - public-facing project description once it exists.
+1. `ONBOARDING.md` - stack setup, env vars, smoke test, and developer role assignments.
+2. `ULTIMATE_HACKATHON_PLAN.md` - product strategy, scope, timeline, and demo priorities.
+3. `TEAM_AGENT_GUIDE.md` - team workflow, file ownership, branch rules, and handoff protocol.
+4. `README.md` - public-facing project description once it exists.
 
 When there is a conflict, follow the latest committed version of `ULTIMATE_HACKATHON_PLAN.md`, then this file.
 
@@ -24,10 +25,10 @@ Recommended lanes:
 
 | Lane | Human + Agent Role | Primary Files | Must Deliver |
 |---|---|---|---|
-| Lane 1 | Graph + Weave owner | `src/graph.py`, `src/schemas.py`, `src/config.py`, `tests/test_spine.py` | Green spine and traceable graph |
-| Lane 2 | Specialist agents owner | `src/agents/risk.py`, `src/agents/rights.py`, `src/agents/obligations.py`, optional `statutes.py`, `tone_intent.py` | Useful structured specialist outputs |
-| Lane 3 | UI + demo owner | `app.py`, `samples/`, screenshots/video assets, README screenshots | Streamlit demo surface and canned samples |
-| Lane 4 | Actions + submission owner | `src/agents/response_drafter.py`, `src/agents/lawyer_finder.py`, `src/tools/search.py`, `README.md`, `.env.example` | Conditional routing actions, submission polish |
+| Lane 1 (Dev 2) | Graph + Weave owner | `src/graph.py`, `src/schemas.py`, `src/config.py`, `tests/test_spine.py` | Green spine and traceable graph |
+| Lane 2 (Dev 3) | Specialist agents owner | `src/agents/risk.py`, `src/agents/rights.py`, `src/agents/obligations.py`, optional `statutes.py`, `tone_intent.py` | Useful structured specialist outputs |
+| Lane 3 (Dev 1) | Ingestion + UI + demo owner | `app.py`, `samples/`, PDF parsing, screenshots/video assets | Chainlit UI, PDF ingestion, canned samples |
+| Lane 4 (Dev 4) | Synthesis + Weave + submission owner | `src/agents/synthesis.py`, `src/agents/response_drafter.py`, `src/agents/lawyer_finder.py`, `src/tools/search.py`, `README.md`, `.env.example` | Synthesis agent, conditional routing, Weave polish, submission |
 
 Lane 1 is the critical path. Everyone else should make their work fit the interfaces Lane 1 defines.
 
@@ -38,22 +39,22 @@ Each lane works on a branch:
 ```bash
 git checkout main
 git pull
-git checkout -b lane-1-graph-weave
+git checkout -b feature/langgraph-core
 ```
 
-Use these branch names:
+Use these branch names (matching ONBOARDING.md):
 
-- `lane-1-graph-weave`
-- `lane-2-specialists`
-- `lane-3-ui-demo`
-- `lane-4-actions-submission`
+- `feature/langgraph-core` (Lane 1 / Dev 2)
+- `feature/specialist-prompts` (Lane 2 / Dev 3)
+- `feature/ui-and-parser` (Lane 3 / Dev 1)
+- `feature/synthesis-and-weave` (Lane 4 / Dev 4)
 
 Commit early and often:
 
 ```bash
 git add .
 git commit -m "Add risk specialist output model"
-git push -u origin lane-2-specialists
+git push -u origin feature/specialist-prompts
 ```
 
 Open PRs into `main` when a slice is working. During the hackathon, PR review can be fast, but one person should still inspect the diff before merge.
@@ -174,14 +175,15 @@ Should avoid:
 - changing graph edges directly without syncing with Lane 1
 - adding live network calls before the core app is stable
 
-### Lane 3 - UI + Demo
+### Lane 3 (Dev 1) - Ingestion + UI + Demo
 
 Owns:
 
-- `app.py`
+- `app.py` (Chainlit — run with `chainlit run app.py`)
 - `samples/debt_collection.txt`
 - `samples/eviction_notice.txt`
 - `samples/employment_warning.txt`
+- PDF parsing logic (PyMuPDF)
 - demo screenshots or video assets
 
 Should avoid:
@@ -190,15 +192,18 @@ Should avoid:
 - changing agent internals
 - making the UI depend on live network calls
 
-### Lane 4 - Actions + Submission
+### Lane 4 (Dev 4) - Synthesis + Weave + Submission
 
 Owns:
 
+- `src/agents/synthesis.py`
 - `src/agents/response_drafter.py`
 - `src/agents/lawyer_finder.py`
 - `src/tools/search.py`
 - `.env.example`
 - `README.md`
+- W&B Weave dashboard layout and op naming
+- pitch deck and demo timing
 
 Should avoid:
 
@@ -233,16 +238,16 @@ Implement the project scaffold and the green spine. Create config, schemas, grap
 Implement risk, rights, and obligations agents with focused prompts and structured Pydantic outputs. Do not change graph wiring unless asked by Lane 1. Include deadline extraction in obligations. Keep outputs concise enough to render in the UI and inspect in Weave.
 ```
 
-### Lane 3 Prompt - UI + Demo
+### Lane 3 Prompt - Ingestion + UI + Demo (Dev 1)
 
 ```text
-Build the Streamlit app and sample letters. The UI should load canned samples, run analysis only on an Analyze button click, show a classification summary, color-coded verdict banner, expandable specialist findings, deadlines, drafted response, lawyer recommendations when present, latency, Weave trace instructions, and a legal-information disclaimer.
+Build app.py in Chainlit and create the three sample letters. The UI must support PDF upload via PyMuPDF, sample shortcuts (type "sample: debt", "sample: eviction", "sample: employment"), show a classification summary, color-coded verdict banner (🟢🟡🔴), expandable specialist findings, deadline callouts, drafted response, lawyer recommendations when present, per-agent latency, Weave trace instructions, and a disclaimer: "This is not legal advice." Run with: chainlit run app.py
 ```
 
-### Lane 4 Prompt - Actions + Submission
+### Lane 4 Prompt - Synthesis + Weave + Submission (Dev 4)
 
 ```text
-Implement response_drafter and lawyer_finder with structured outputs. Lawyer finder must run only for consult_lawyer or urgent verdicts once wired by Lane 1. Keep search optional and fail-soft. Maintain README.md as the public hackathon submission page.
+Implement synthesis (merges all specialist findings into a verdict), response_drafter (always runs), and lawyer_finder (runs only for consult_lawyer or urgent verdicts). Ensure every agent function is decorated with @weave.op() and named clearly for the Weave trace. Keep search optional and fail-soft. Own the Weave dashboard layout and maintain README.md as the public hackathon submission page.
 ```
 
 ## Handoff Protocol

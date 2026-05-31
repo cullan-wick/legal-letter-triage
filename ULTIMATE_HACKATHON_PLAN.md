@@ -41,7 +41,7 @@ Protect this scope. Everything else is stretch.
 | 2 | Green spine | Paste/load letter -> orchestrator -> risk agent -> synthesis -> verdict -> Weave trace | 12:30 |
 | 3 | Three-agent triage | Add rights + obligations/deadlines specialists | 2:30 |
 | 4 | Conditional routing | Response drafter always runs; lawyer finder runs only for `consult_lawyer` or `urgent` | 3:30 |
-| 5 | Demo UI | One Streamlit screen, canned samples, color verdict banner, expandable findings, drafted reply | 4:30 |
+| 5 | Demo UI | One Chainlit screen, canned samples, color verdict banner, expandable findings, drafted reply | 4:30 |
 | 6 | Weave polish | Named ops, readable trace tree, per-agent latency, trace screenshot/link ready | 6:00 |
 | 7 | Submission polish | README matches checklist, demo video under 2 minutes, final repo clean | 7:00 |
 
@@ -63,7 +63,7 @@ Only attempt these after must-ship scope is green and committed.
 Minimum demo architecture:
 
 ```text
-Streamlit UI
+Chainlit UI
   |
   v
 LangGraph
@@ -109,14 +109,14 @@ Every node should be decorated with `@weave.op()` and named clearly enough that 
 
 | Tool | Role | Why |
 |---|---|---|
-| Python 3.11+ | Core language | Fastest path to LangGraph, Streamlit, Pydantic, Weave |
+| Python 3.11+ | Core language | Fastest path to LangGraph, Chainlit, Pydantic, Weave |
 | LangGraph | Agent orchestration | Clear graph, conditional routing, fan-out/fan-in story |
 | Pydantic | Structured I/O | Stable synthesis and readable traces |
 | W&B Weave | Observability | Main prize strategy and trust layer |
-| Streamlit | UI | Fast demo surface |
+| Chainlit | UI | Chat-native demo surface with file upload |
 | Tavily | Search | Stretch grounding for statutes and lawyer finder |
 | MCP | Tool protocol | Stretch protocol story, not a critical path dependency |
-| Model provider | Agent intelligence | Keep swappable through config |
+| W&B Inference | Model provider | OpenAI-compatible API; default model `qwen3-coder-480b`; every call auto-traced in Weave |
 
 ## Repo Scaffold
 
@@ -169,10 +169,12 @@ __pycache__/
 `.env.example` should include:
 
 ```dotenv
-ANTHROPIC_API_KEY=
-TAVILY_API_KEY=
-WANDB_API_KEY=
+OPENAI_API_KEY=                                   # W&B Inference key
+OPENAI_BASE_URL=https://api.inference.wandb.ai/v1
+WANDB_API_KEY=                                    # W&B dashboard key
 WEAVE_PROJECT=legal-letter-triage
+MODEL=qwen3-coder-480b
+TAVILY_API_KEY=                                   # stretch only
 ```
 
 Never commit `.env`.
@@ -224,24 +226,23 @@ Add the demo's strongest sophistication signal:
 
 For the first version, lawyer finder can recommend lawyer type, questions to ask, and estimated cost categories without live search.
 
-### Slice 4 - Streamlit UI
+### Slice 4 - Chainlit UI
 
-One screen. No landing page.
+One screen. No landing page. Run with `chainlit run app.py`.
 
 Required UI:
 
-- Text area for pasted letter.
-- Buttons to load canned samples.
-- Analyze button.
-- Classification at top.
-- Large color-coded verdict banner.
-- Expandable specialist findings.
+- Text input for pasted letter; PDF/image file upload via PyMuPDF.
+- Sample shortcuts: type `sample: debt`, `sample: eviction`, `sample: employment`.
+- Classification summary at top.
+- Large color-coded verdict banner (🟢 handle_yourself / 🟡 consult_lawyer / 🔴 urgent).
+- Expandable specialist findings (Risk, Rights, Obligations).
 - Deadline callouts.
 - Drafted response.
 - Lawyer finder section only when present.
 - Per-agent latency.
 - Weave trace link or clear instruction to open Weave project.
-- One-line disclaimer.
+- One-line disclaimer: "This is not legal advice."
 
 Avoid live typing during the demo. Use a canned sample.
 
@@ -299,9 +300,9 @@ Safe default:
 
 This is safer for users and keeps the conditional lawyer-finder demo path alive.
 
-### Streamlit Rerun Guard
+### Chainlit Rerun Guard
 
-Use `st.session_state` so widget interactions do not re-run the graph accidentally. Run analysis only when the user clicks Analyze.
+Use `cl.user_session` or guard logic in `@cl.on_message` so re-sends do not re-run the graph accidentally. Run analysis only when the user explicitly sends a message or clicks Analyze.
 
 ### Secrets
 
@@ -323,7 +324,7 @@ Confirm `.env` is not tracked.
 | Live search timeout | Medium | Demo crash | Fail-soft wrapper; pre-cache sample path |
 | Empty specialist output breaks synthesis | Medium | Blank verdict | Nil guard and safe default |
 | `.env` committed | Low/Medium | Public secret leak | `.gitignore` before first commit |
-| Streamlit reruns graph repeatedly | Medium | Slow/duplicated demo | Gate on Analyze button |
+| Chainlit reruns graph on re-send | Medium | Slow/duplicated demo | Guard in on_message handler |
 | MCP refactor breaks working app | High if attempted late | Unfinished at submission | Stretch only, dead last |
 | README unfinished | Medium | Weak submission | Update throughout, finalize by 7:00 |
 
@@ -335,7 +336,7 @@ Confirm `.env` is not tracked.
 | 12:00-12:30 | Graph lead | Spine green: orchestrator -> risk -> synthesis -> Weave |
 | 12:30-2:30 | Agent lead + graph lead | Rights + obligations added; three-agent verdict working |
 | 2:30-3:30 | Routing lead | Response drafter + conditional lawyer finder |
-| 3:30-4:30 | UI lead | Streamlit demo screen with canned samples |
+| 3:30-4:30 | UI lead | Chainlit demo screen with canned samples and PDF upload |
 | 4:30-6:00 | Weave/demo lead | Trace polish, latency display, screenshot, rehearsal |
 | 6:00-7:00 | Whole team | Pick one stretch only; record video; update README |
 | 7:00-8:00 | Submission lead | Freeze code, final README, submit |
@@ -383,7 +384,7 @@ Add response_drafter, which always runs after synthesis. Add lawyer_finder and a
 ### Prompt 4 - UI
 
 ```text
-Build app.py in Streamlit: textarea, buttons to load sample letters, Analyze button, classification summary, color-coded verdict banner, expandable agent findings, deadlines, drafted reply, lawyer recommendations when present, per-agent latency, Weave trace link/instructions, and a disclaimer.
+Build app.py in Chainlit: PDF upload via PyMuPDF, sample shortcuts (sample: debt/eviction/employment), classification summary, color-coded verdict banner, expandable agent findings, deadlines, drafted reply, lawyer recommendations when present, per-agent latency, Weave trace link/instructions, and a disclaimer. Run with: chainlit run app.py
 ```
 
 ### Prompt 5 - Weave Polish
