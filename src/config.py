@@ -7,7 +7,7 @@ load_dotenv()
 
 WANDB_API_KEY = os.environ["WANDB_API_KEY"]
 WEAVE_PROJECT = os.getenv("WEAVE_PROJECT", "legal-letter-triage")
-MODEL = os.getenv("MODEL", "qwen3-coder-480b")
+MODEL = os.getenv("MODEL", "Qwen/Qwen3-Coder-480B-A35B-Instruct")
 
 weave.init(WEAVE_PROJECT)
 

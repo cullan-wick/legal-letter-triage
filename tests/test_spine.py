@@ -16,7 +16,7 @@ assert result["verdict"]["verdict"] in ("handle_yourself", "consult_lawyer", "ur
 assert result["draft_response"] is not None, "Draft response missing"
 assert len(result["specialist_findings"]) >= 1, "No specialist findings"
 
-print("✓ Spine test passed")
+print("PASS: Spine test passed")
 print(f"  Verdict: {result['verdict']['verdict']}")
 print(f"  Latencies: {result['latencies']}")
 print(f"  Errors: {result['errors']}")
