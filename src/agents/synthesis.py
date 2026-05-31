@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import time
 
 from src.schemas import AgentState, SynthesisOutput
@@ -67,19 +68,44 @@ def _is_real_deadline(deadline: str) -> bool:
     return bool(normalized) and not any(marker in normalized for marker in NON_DEADLINE_MARKERS)
 
 
+_MONTHS = "january|february|march|april|may|june|july|august|september|october|november|december"
+_DATE_RE = re.compile(
+    rf"\b(?:{_MONTHS})\s+\d{{1,2}}(?:st|nd|rd|th)?,?\s+\d{{4}}\b"  # May 30, 2026
+    r"|\b\d{1,2}/\d{1,2}/\d{2,4}\b"                                # 05/30/2026
+    r"|\b\d{4}-\d{2}-\d{2}\b",                                     # 2026-05-30
+    re.IGNORECASE,
+)
+
+
+def _deadline_key(deadline: str) -> str:
+    """Collapse different phrasings of the same deadline onto one key.
+
+    Specialists often restate the same date in different words ("May 30, 2026" vs
+    "Payment deadline: May 30, 2026 (15 days...)"). Key on the calendar date when one is
+    present so those merge; otherwise fall back to a normalized form of the whole phrase.
+    """
+    match = _DATE_RE.search(deadline)
+    if match:
+        return re.sub(r"[\s,]+", " ", match.group(0).lower()).strip()
+    return re.sub(r"[^a-z0-9]+", " ", deadline.lower()).strip()
+
+
 def _real_deadlines(specialist_findings: list[dict]) -> list[str]:
-    deadlines: list[str] = []
-    seen: set[str] = set()
+    best: dict[str, str] = {}
+    order: list[str] = []
     for finding in _successful_findings(specialist_findings):
         for deadline in finding.get("deadlines", []):
             if not isinstance(deadline, str) or not _is_real_deadline(deadline):
                 continue
             normalized = deadline.strip()
-            key = normalized.lower()
-            if key not in seen:
-                deadlines.append(normalized)
-                seen.add(key)
-    return deadlines
+            key = _deadline_key(normalized)
+            if key not in best:
+                best[key] = normalized
+                order.append(key)
+            elif len(normalized) > len(best[key]):
+                # keep the most informative phrasing for this date
+                best[key] = normalized
+    return [best[key] for key in order]
 
 
 def _successful_findings(specialist_findings: list[dict]) -> list[dict]:

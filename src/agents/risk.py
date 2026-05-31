@@ -35,7 +35,9 @@ def _context(state: AgentState) -> str:
 
 
 @weave.op()
-def risk_assess(state: AgentState) -> AgentState:
+def risk_assess(state: AgentState) -> dict:
+    """Parallel-safe: writes only its own staging key (`risk_finding`) so concurrent
+    specialists never write the same channel. `collect` folds it into specialist_findings."""
     start = time.time()
     try:
         response = client.chat.completions.create(
@@ -48,17 +50,14 @@ def risk_assess(state: AgentState) -> AgentState:
         )
         finding = SpecialistFinding.model_validate_json(response.choices[0].message.content)
         finding.agent_name = "risk"
-        state["specialist_findings"].append(finding.model_dump())
+        result = finding.model_dump()
     except Exception as exc:
-        state["errors"].append(f"risk: {exc}")
-        state["specialist_findings"].append(
-            SpecialistFinding(
-                agent_name="risk",
-                summary="Risk assessment could not be completed; treat this as needing review.",
-                key_points=[],
-                needs_lawyer=True,
-                error=str(exc),
-            ).model_dump()
-        )
-    state["latencies"]["risk"] = round(time.time() - start, 2)
-    return state
+        result = SpecialistFinding(
+            agent_name="risk",
+            summary="Risk assessment could not be completed; treat this as needing review.",
+            key_points=[],
+            needs_lawyer=True,
+            error=str(exc),
+        ).model_dump()
+    result["latency_ms"] = round(time.time() - start, 2)
+    return {"risk_finding": result}
