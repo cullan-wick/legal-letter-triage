@@ -85,7 +85,7 @@ class LawyerFinderTest(unittest.TestCase):
         self.assertIn("lawyer_finder", result["latencies"])
         self.assertEqual(result["errors"], [])
 
-    def test_find_lawyer_falls_back_when_live_model_fails(self) -> None:
+    def test_find_lawyer_raises_when_live_model_fails(self) -> None:
         state = {
             "letter_text": "Sample debt collection letter.",
             "classification": {"letter_type": "debt_collection", "jurisdiction": "CA", "urgency": "medium"},
@@ -99,10 +99,11 @@ class LawyerFinderTest(unittest.TestCase):
         }
 
         with patch("src.agents.lawyer_finder._create_completion", side_effect=RuntimeError("model down")):
-            result = find_lawyer(state)
+            with self.assertRaisesRegex(RuntimeError, "model down"):
+                find_lawyer(state)
 
-        self.assertIn("Consumer debt defense", result["lawyer_recommendation"]["lawyer_type"])
-        self.assertIn("lawyer_finder: model down", result["errors"])
+        self.assertIsNone(state["lawyer_recommendation"])
+        self.assertEqual(state["errors"], [])
 
 
 if __name__ == "__main__":

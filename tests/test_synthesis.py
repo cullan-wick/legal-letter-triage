@@ -161,7 +161,7 @@ class SynthesisTest(unittest.TestCase):
         self.assertIn("synthesis", result["latencies"])
         self.assertEqual(result["errors"], [])
 
-    def test_synthesize_verdict_falls_back_when_live_model_fails(self) -> None:
+    def test_synthesize_verdict_raises_when_live_model_fails(self) -> None:
         state = {
             "letter_text": "Sample employment warning.",
             "classification": {"letter_type": "employment_warning", "jurisdiction": "WA", "urgency": "medium"},
@@ -177,10 +177,11 @@ class SynthesisTest(unittest.TestCase):
         }
 
         with patch("src.agents.synthesis._create_completion", side_effect=RuntimeError("model down")):
-            result = synthesize_verdict(state)
+            with self.assertRaisesRegex(RuntimeError, "model down"):
+                synthesize_verdict(state)
 
-        self.assertEqual(result["verdict"]["verdict"], "consult_lawyer")
-        self.assertIn("synthesis: model down", result["errors"])
+        self.assertIsNone(state["verdict"])
+        self.assertEqual(state["errors"], [])
 
 
 if __name__ == "__main__":

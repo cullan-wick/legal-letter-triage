@@ -272,10 +272,6 @@ def find_lawyer(state: AgentState) -> AgentState:
     start = time.time()
     classification = state.get("classification", {}) or {}
     verdict = state.get("verdict", {}) or {}
-    try:
-        state["lawyer_recommendation"] = recommend_lawyer_live(classification, verdict)
-    except Exception as exc:
-        state["errors"].append(f"lawyer_finder: {exc}")
-        state["lawyer_recommendation"] = recommend_lawyer(classification, verdict)
+    state["lawyer_recommendation"] = recommend_lawyer_live(classification, verdict)
     state["latencies"]["lawyer_finder"] = round(time.time() - start, 2)
     return state

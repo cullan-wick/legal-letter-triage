@@ -267,15 +267,11 @@ def synthesize_verdict(state: AgentState) -> AgentState:
     classification = state.get("classification", {}) or {}
     specialist_findings = state.get("specialist_findings", [])
     urgency_signal = state.get("urgency_signal", "medium")
-    try:
-        state["verdict"] = synthesize_live(
-            state.get("letter_text", ""),
-            classification,
-            specialist_findings,
-            urgency_signal,
-        )
-    except Exception as exc:
-        state["errors"].append(f"synthesis: {exc}")
-        state["verdict"] = synthesize(classification, specialist_findings, urgency_signal)
+    state["verdict"] = synthesize_live(
+        state.get("letter_text", ""),
+        classification,
+        specialist_findings,
+        urgency_signal,
+    )
     state["latencies"]["synthesis"] = round(time.time() - start, 2)
     return state
