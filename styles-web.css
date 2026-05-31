@@ -142,6 +142,10 @@ button { font-family: inherit; }
 .compose .lead { font-size: 16px; line-height: 1.5; color: var(--ink-soft); max-width: 560px; }
 
 .composer-box { margin-top: 26px; position: relative; }
+.composer-label {
+  display: block; margin-bottom: 8px; font-family: var(--mono); font-size: 11px; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--ink-faint);
+}
 .composer-box textarea {
   width: 100%; min-height: 168px; resize: vertical; border: 1.5px solid var(--border);
   border-radius: var(--r); background: var(--surface); padding: 18px 18px;

@@ -36,7 +36,8 @@ function Composer({ onAnalyze, liveMode }) {
         <p className="lead">Paste a letter that’s worrying you. Seven agents read it the way a careful lawyer would, then hand back a plain-English verdict, your next steps, and a reply you can send.</p>
 
         <div className="composer-box">
-          <textarea value={text}
+          <label className="composer-label" htmlFor="letter-text">Letter text</label>
+          <textarea id="letter-text" value={text}
             onChange={(e) => { setText(e.target.value); setActive(null); }}
             placeholder="Paste the full text of the letter here — names, dates, amounts, and all."></textarea>
         </div>
