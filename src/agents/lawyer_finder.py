@@ -32,6 +32,30 @@ STATE_REFERRALS = {
 }
 
 
+JURISDICTION_ALIASES = {
+    "california": "CA",
+    "ca": "CA",
+    "new_york": "NY",
+    "new york": "NY",
+    "ny": "NY",
+    "texas": "TX",
+    "tx": "TX",
+    "florida": "FL",
+    "fl": "FL",
+    "illinois": "IL",
+    "il": "IL",
+    "massachusetts": "MA",
+    "ma": "MA",
+    "washington": "WA",
+    "wa": "WA",
+    "district_of_columbia": "DC",
+    "district of columbia": "DC",
+    "washington_dc": "DC",
+    "washington dc": "DC",
+    "dc": "DC",
+}
+
+
 HELP_BY_LETTER_TYPE = {
     "debt_collection": {
         "lawyer_type": "Consumer debt defense or consumer protection attorney",
@@ -159,8 +183,11 @@ def _urgency_guidance(verdict_value: str, classification: dict) -> str:
 
 
 def _jurisdiction_note(jurisdiction: str) -> str:
+    normalized = jurisdiction.strip().lower().replace(".", "").replace(",", " ")
+    normalized = "_".join(normalized.split())
+    jurisdiction_key = JURISDICTION_ALIASES.get(normalized, jurisdiction.upper())
     return STATE_REFERRALS.get(
-        jurisdiction,
+        jurisdiction_key,
         "Jurisdiction was not identified; use your local legal aid directory, court self-help center, or bar association referral service.",
     )
 

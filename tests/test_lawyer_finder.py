@@ -6,7 +6,7 @@ from src.agents.lawyer_finder import find_lawyer, recommend_lawyer
 class LawyerFinderTest(unittest.TestCase):
     def test_debt_collection_recommendation_is_specific_to_type_and_state(self) -> None:
         recommendation = recommend_lawyer(
-            {"letter_type": "debt_collection", "jurisdiction": "CA", "urgency": "medium"},
+            {"letter_type": "debt_collection", "jurisdiction": "California", "urgency": "medium"},
             {"verdict": "consult_lawyer"},
         )
 
