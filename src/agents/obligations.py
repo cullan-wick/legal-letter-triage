@@ -38,7 +38,9 @@ def _context(state: AgentState) -> str:
 
 
 @weave.op()
-def obligations_extract(state: AgentState) -> AgentState:
+def obligations_extract(state: AgentState) -> dict:
+    """Parallel-safe: writes only its own staging key (`obligations_finding`) so concurrent
+    specialists never write the same channel. `collect` folds it into specialist_findings."""
     start = time.time()
     try:
         response = client.chat.completions.create(
@@ -53,18 +55,15 @@ def obligations_extract(state: AgentState) -> AgentState:
         finding.agent_name = "obligations"
         if not finding.deadlines:
             finding.deadlines = ["No explicit deadline detected; verify dates in the full document."]
-        state["specialist_findings"].append(finding.model_dump())
+        result = finding.model_dump()
     except Exception as exc:
-        state["errors"].append(f"obligations: {exc}")
-        state["specialist_findings"].append(
-            SpecialistFinding(
-                agent_name="obligations",
-                summary="Obligations could not be extracted; verify all deadlines in the full document.",
-                key_points=[],
-                deadlines=["Unable to extract deadlines automatically; review the letter for dates."],
-                needs_lawyer=True,
-                error=str(exc),
-            ).model_dump()
-        )
-    state["latencies"]["obligations"] = round(time.time() - start, 2)
-    return state
+        result = SpecialistFinding(
+            agent_name="obligations",
+            summary="Obligations could not be extracted; verify all deadlines in the full document.",
+            key_points=[],
+            deadlines=["Unable to extract deadlines automatically; review the letter for dates."],
+            needs_lawyer=True,
+            error=str(exc),
+        ).model_dump()
+    result["latency_ms"] = round(time.time() - start, 2)
+    return {"obligations_finding": result}

@@ -38,7 +38,9 @@ def _context(state: AgentState) -> str:
 
 
 @weave.op()
-def rights_review(state: AgentState) -> AgentState:
+def rights_review(state: AgentState) -> dict:
+    """Parallel-safe: writes only its own staging key (`rights_finding`) so concurrent
+    specialists never write the same channel. `collect` folds it into specialist_findings."""
     start = time.time()
     try:
         response = client.chat.completions.create(
@@ -51,17 +53,14 @@ def rights_review(state: AgentState) -> AgentState:
         )
         finding = SpecialistFinding.model_validate_json(response.choices[0].message.content)
         finding.agent_name = "rights"
-        state["specialist_findings"].append(finding.model_dump())
+        result = finding.model_dump()
     except Exception as exc:
-        state["errors"].append(f"rights: {exc}")
-        state["specialist_findings"].append(
-            SpecialistFinding(
-                agent_name="rights",
-                summary="Rights review could not be completed; preserve all records and verify rights before acting.",
-                key_points=[],
-                needs_lawyer=True,
-                error=str(exc),
-            ).model_dump()
-        )
-    state["latencies"]["rights"] = round(time.time() - start, 2)
-    return state
+        result = SpecialistFinding(
+            agent_name="rights",
+            summary="Rights review could not be completed; preserve all records and verify rights before acting.",
+            key_points=[],
+            needs_lawyer=True,
+            error=str(exc),
+        ).model_dump()
+    result["latency_ms"] = round(time.time() - start, 2)
+    return {"rights_finding": result}
