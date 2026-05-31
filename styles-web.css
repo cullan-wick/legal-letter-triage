@@ -274,13 +274,21 @@ button { font-family: inherit; }
 
 /* findings 3-up */
 .findings-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-.finding-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 18px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; }
+.finding-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 18px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; cursor: pointer; text-align: left; transition: border-color .14s, box-shadow .14s, transform .14s; }
+.finding-card:hover { border-color: color-mix(in srgb, var(--ag-ink) 35%, var(--border)); box-shadow: var(--shadow); }
+.finding-card:focus-visible { outline: 3px solid color-mix(in srgb, var(--ag-ink) 28%, transparent); outline-offset: 3px; }
+.finding-card.expanded { border-color: color-mix(in srgb, var(--ag-ink) 42%, var(--border)); }
 .finding-card .fhead { display: flex; align-items: center; gap: 11px; margin-bottom: 12px; }
 .finding-card .fico { width: 38px; height: 38px; border-radius: 11px; display: flex; align-items: center; justify-content: center; }
 .finding-card .fico svg { width: 19px; height: 19px; }
 .finding-card .fname { font-size: 14.5px; font-weight: 700; flex: 1; }
+.finding-card .fchev { width: 20px; height: 20px; color: var(--ink-faint); display: flex; align-items: center; justify-content: center; transition: transform .16s, color .16s; }
+.finding-card .fchev svg { width: 16px; height: 16px; }
+.finding-card.expanded .fchev { color: var(--ag-ink); transform: rotate(90deg); }
 .conf { font-family: var(--mono); font-size: 9px; letter-spacing: .06em; text-transform: uppercase; padding: 3px 7px; border-radius: 6px; background: var(--surface-2); color: var(--ink-soft); }
-.fsummary { font-size: 13px; line-height: 1.45; color: var(--ink-soft); margin-bottom: 14px; }
+.fsummary { font-size: 13px; line-height: 1.45; color: var(--ink-soft); margin-bottom: 0; }
+.fmore { display: flex; align-items: center; margin-top: 12px; font-family: var(--mono); font-size: 10.5px; color: var(--ag-ink); }
+.finding-details { margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--border); }
 .kp { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 0; }
 .kp li { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; line-height: 1.5; color: var(--ink); list-style: none; margin: 0; }
 .kp li > span:last-child { min-width: 0; }
@@ -288,6 +296,7 @@ button { font-family: inherit; }
 .kp li .tick svg { width: 13px; height: 13px; display: block; }
 .dl-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--border); }
 .dl-tag { font-family: var(--mono); font-size: 10.5px; font-weight: 500; background: var(--vc-bg); color: var(--vc-deep); border: 1px solid var(--vc-line); padding: 4px 9px; border-radius: 7px; }
+.dl-tag svg { width: 12px; height: 12px; vertical-align: -2px; }
 
 /* steps + draft two-up */
 .cols-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start; }

@@ -3,23 +3,48 @@
    ============================================================ */
 
 function FindingCard({ id, data }) {
+  const [expanded, setExpanded] = React.useState(false);
   const m = AGENTS[id];
+  const points = data.points || [];
+  const deadlines = data.deadlines || [];
+  const toggle = () => setExpanded((value) => !value);
+  const onKeyDown = (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      toggle();
+    }
+  };
+
   return (
-    <div className="finding-card" style={{ '--ag-ink': m.ink, '--ag-bg': m.bg }}>
+    <div
+      className={`finding-card ${expanded ? 'expanded' : ''}`}
+      style={{ '--ag-ink': m.ink, '--ag-bg': m.bg }}
+      role="button"
+      tabIndex="0"
+      aria-expanded={expanded}
+      onClick={toggle}
+      onKeyDown={onKeyDown}
+    >
       <div className="fhead">
         <div className="fico" style={{ background: m.bg, color: m.ink }}>{m.icon}</div>
         <span className="fname">{m.name}</span>
         <span className="conf">{data.confidence}</span>
+        <span className="fchev">{I.chev}</span>
       </div>
       <p className="fsummary">{data.summary}</p>
-      <ul className="kp">
-        {data.points.map((p, i) => (
-          <li key={i}><span className="tick">{I.tick}</span><span>{p}</span></li>
-        ))}
-      </ul>
-      {data.deadlines.length > 0 && (
-        <div className="dl-tags">
-          {data.deadlines.map((d, i) => <span className="dl-tag" key={i}>⏱ {d}</span>)}
+      <div className="fmore"><span>{expanded ? 'Hide details' : 'Show details'}</span></div>
+      {expanded && (
+        <div className="finding-details">
+          <ul className="kp">
+            {points.map((p, i) => (
+              <li key={i}><span className="tick">{I.tick}</span><span>{p}</span></li>
+            ))}
+          </ul>
+          {deadlines.length > 0 && (
+            <div className="dl-tags">
+              {deadlines.map((d, i) => <span className="dl-tag" key={i}>{I.activity} {d}</span>)}
+            </div>
+          )}
         </div>
       )}
     </div>
