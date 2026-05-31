@@ -116,6 +116,10 @@ async def on_message(message: cl.Message):
             "**Questions to ask:**",
         ]
         parts += [f"- {q}" for q in lawyer.get("questions_to_ask", [])]
+        referrals = lawyer.get("live_referrals") or []
+        if referrals:
+            parts += ["", "**Referral resources (live search):**"]
+            parts += [f"- [{r.get('title') or r.get('url', '')}]({r.get('url', '')})" for r in referrals]
 
     latency_str = " | ".join(f"{k}: {v}s" for k, v in latencies.items())
     parts += ["", f"*Latency — {latency_str}*", "", "*This is not legal advice.*"]

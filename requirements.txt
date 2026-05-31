@@ -5,3 +5,4 @@ openai
 pymupdf
 python-dotenv
 pydantic
+tavily-python

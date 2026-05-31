@@ -121,6 +121,7 @@ function adaptTriageState(state, letterText) {
       documents: law.documents_to_prepare || [],
       urgencyGuidance: law.urgency_guidance || '',
       jurisdictionNote: law.jurisdiction_note || '',
+      referrals: law.live_referrals || [],
     } : null,
     latencies: normalizeLatencies(state.latencies || {}),
   };
@@ -244,6 +245,10 @@ Sincerely,
       type: lawyerType, blurb: 'Often available through free legal aid',
       questions: ['What deadline matters most right now?', 'Should I respond before you review the full letter?', 'What documents should I gather?', 'Do you offer a limited-scope consult or legal-aid referral?'],
       cost: 'Ask about free legal aid, nonprofit clinics, limited-scope consults, and flat-fee options before agreeing to anything.',
+      referrals: [
+        { title: 'Legal Services Corporation — Find Legal Aid', url: 'https://www.lsc.gov/about-lsc/what-legal-aid/get-legal-help' },
+        { title: 'American Bar Association — Free Legal Answers', url: 'https://www.americanbar.org/groups/legal_services/flh-home/' },
+      ],
     } : null,
     latencies,
   };

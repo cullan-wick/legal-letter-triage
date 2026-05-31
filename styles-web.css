@@ -340,6 +340,12 @@ button { font-family: inherit; }
 .lawyer-docs li { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; line-height: 1.45; color: var(--ink); list-style: none; }
 .lawyer-docs li .tick { color: var(--accent); margin-top: 1px; }
 .lawyer-docs li .tick svg { width: 13px; height: 13px; display: block; }
+.lawyer-referrals { margin-top: 14px; }
+.lawyer-referrals .eyebrow { display: block; margin-bottom: 8px; }
+.lawyer-referrals ul { display: flex; flex-direction: column; gap: 7px; margin: 0; padding: 0; }
+.lawyer-referrals li { font-size: 12.5px; line-height: 1.45; list-style: none; }
+.lawyer-referrals li a { color: var(--accent); text-decoration: none; }
+.lawyer-referrals li a:hover { text-decoration: underline; }
 .qlist { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
 .qlist .eyebrow { grid-column: 1 / -1; }
 .qlist li { display: flex; gap: 9px; font-size: 13px; line-height: 1.4; color: var(--ink); list-style: none; }
