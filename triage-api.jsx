@@ -9,6 +9,7 @@
    • Leave apiUrl = null  -> built-in local mock (works offline, any letter)
    • Set apiUrl = "<url>"  -> POSTs the letter to your backend and renders
                               the real agent output via adaptTriageState().
+                              Email drafts are generated later via draftUrl.
 
    Your backend should expose run() (src/graph.py) over HTTP and
    return the TriageState dict (src/schemas.py) as JSON. See README.md in
@@ -19,6 +20,7 @@ window.LetterLensConfig = {
   // ── set this to your endpoint to switch from mock to live agents ──
   apiUrl: new URLSearchParams(window.location.search).get('apiUrl') || null,
   // e.g. open with ?apiUrl=http://localhost:8000/api/triage
+  draftUrl: new URLSearchParams(window.location.search).get('draftUrl') || null,
   // optional: extra headers (auth tokens, etc.)
   headers: {},
 };
@@ -95,6 +97,7 @@ function adaptTriageState(state, letterText) {
   return {
     id: 'live',
     mode: 'live',
+    rawVerdict: v,
     label: meta.label,
     sub: c.summary || '',
     icon: meta.icon, tone: meta.tone, toneBg: meta.toneBg,
@@ -112,7 +115,7 @@ function adaptTriageState(state, letterText) {
       next_steps: v.next_steps || [],
       urgent_deadlines: urgentDeadlines,
     },
-    draft: { subject: d.subject || '', body: d.body || '', tone: d.tone || 'calm and documented' },
+    draft: d.subject || d.body ? { subject: d.subject || '', body: d.body || '', tone: d.tone || 'calm and documented' } : null,
     lawyer: showLawyer ? {
       type: cap(law.lawyer_type) || 'Civil legal aid',
       blurb: law.reason || 'Recommended by the referral agent',
@@ -126,6 +129,16 @@ function adaptTriageState(state, letterText) {
     latencies: normalizeLatencies(state.latencies || {}),
   };
 }
+
+const draftUrlFor = (cfg) => cfg.draftUrl || (cfg.apiUrl ? cfg.apiUrl.replace(/\/triage\/?$/, '/draft') : null);
+const adaptDraftState = (state) => {
+  const d = state.draft_response || {};
+  return {
+    draft: { subject: d.subject || '', body: d.body || '', tone: d.tone || 'calm and documented' },
+    latencies: normalizeLatencies(state.latencies || {}),
+    errors: state.errors || [],
+  };
+};
 
 /* ============================================================
    LOCAL MOCK — no backend required.
@@ -281,4 +294,23 @@ async function runTriage(letterText) {
   return new Promise((resolve) => setTimeout(() => resolve(mockTriage(letterText)), 120));
 }
 
-window.LetterLens = { runTriage, adaptTriageState, mockTriage, buildGenericTriage };
+async function createDraft(sample) {
+  const cfg = window.LetterLensConfig || {};
+  const draftUrl = draftUrlFor(cfg);
+  if (draftUrl && sample.mode === 'live') {
+    const res = await fetch(draftUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(cfg.headers || {}) },
+      body: JSON.stringify({ letter_text: sample.text, verdict: sample.rawVerdict || sample.verdict }),
+    });
+    if (!res.ok) throw new Error(`Draft API ${res.status}: ${res.statusText}`);
+    return adaptDraftState(await res.json());
+  }
+  return new Promise((resolve) => setTimeout(() => resolve({
+    draft: sample.draft || buildGenericTriage(sample.text).draft,
+    latencies: { response_drafter: sample.latencies?.response_drafter || 650 },
+    errors: [],
+  }), 350));
+}
+
+window.LetterLens = { runTriage, createDraft, adaptTriageState, mockTriage, buildGenericTriage };

@@ -6,9 +6,10 @@ const FLOW_GAP = 240;
 function buildTimelineWeb(sample) {
   const latency = (id, fallback = 480) => {
     const value = sample.latencies && sample.latencies[id];
-    return Number.isFinite(value) ? Math.max(value, 0) : fallback;
+    const actual = Number.isFinite(value) ? Math.max(value, 0) : fallback;
+    return Math.min(actual, 900);
   };
-  const showLawyer = ['consult_lawyer', 'urgent'].includes(sample.verdict.value);
+  const showLawyer = Boolean(sample.lawyer);
   const seg = {};
   seg.orchestrator = { start: 0, end: latency('orchestrator') };
   let t = seg.orchestrator.end + FLOW_GAP;
@@ -19,8 +20,6 @@ function buildTimelineWeb(sample) {
   t = Math.max(seg.risk.end, seg.rights.end, seg.obligations.end) + FLOW_GAP;
   seg.synthesis = { start: t, end: t + latency('synthesis') };
   t = seg.synthesis.end + FLOW_GAP;
-  seg.response_drafter = { start: t, end: t + latency('response_drafter') };
-  t = seg.response_drafter.end + FLOW_GAP;
   if (showLawyer) { seg.lawyer_finder = { start: t, end: t + latency('lawyer_finder') }; t = seg.lawyer_finder.end; }
   return { seg, total: t, showLawyer };
 }
@@ -71,9 +70,8 @@ function WebAnalyzing({ sample, speed, onDone }) {
   const orchDone = elapsed >= s.orchestrator.end;
   const specsDone = elapsed >= Math.max(s.risk.end, s.rights.end, s.obligations.end);
   const synthDone = elapsed >= s.synthesis.end;
-  const draftDone = elapsed >= s.response_drafter.end;
 
-  const running = ['orchestrator', 'risk', 'rights', 'obligations', 'synthesis', 'response_drafter', ...(tl.showLawyer ? ['lawyer_finder'] : [])]
+  const running = ['orchestrator', 'risk', 'rights', 'obligations', 'synthesis', ...(tl.showLawyer ? ['lawyer_finder'] : [])]
     .filter((id) => elapsed >= s[id].start && elapsed < s[id].end);
   let headline = 'Reading your letter…';
   if (running.length > 1) headline = 'Three specialists are reviewing in parallel…';
@@ -122,13 +120,9 @@ function WebAnalyzing({ sample, speed, onDone }) {
 
         <div className={`conn ${synthDone ? 'fill' : ''}`}><i></i></div>
 
-        <div className="flow-col">
-          <PNode id="response_drafter" seg={s.response_drafter} elapsed={elapsed} sample={sample} />
-        </div>
-
         {tl.showLawyer && (
           <React.Fragment>
-            <div className={`conn ${draftDone ? 'fill' : ''}`}><i></i></div>
+            <div className={`conn ${synthDone ? 'fill' : ''}`}><i></i></div>
             <div className="flow-col">
               <PNode id="lawyer_finder" seg={s.lawyer_finder} elapsed={elapsed} sample={sample} />
             </div>

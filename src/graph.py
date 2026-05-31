@@ -40,7 +40,7 @@ def collect_findings(state: AgentState) -> dict:
     return {"specialist_findings": findings, "latencies": latencies, "errors": errors}
 
 
-def build_graph() -> StateGraph:
+def build_graph(include_draft: bool = True) -> StateGraph:
     graph = StateGraph(AgentState)
 
     graph.add_node("orchestrator", orchestrator_classify)
@@ -49,7 +49,8 @@ def build_graph() -> StateGraph:
     graph.add_node("obligations", obligations_extract)
     graph.add_node("collect", collect_findings)
     graph.add_node("synthesis", synthesize_verdict)
-    graph.add_node("response_drafter", draft_response)
+    if include_draft:
+        graph.add_node("response_drafter", draft_response)
     graph.add_node("find_lawyer", find_lawyer)
 
     graph.set_entry_point("orchestrator")
@@ -65,18 +66,22 @@ def build_graph() -> StateGraph:
     graph.add_edge("obligations", "collect")
     graph.add_edge("collect", "synthesis")
 
-    graph.add_edge("synthesis", "response_drafter")
-    graph.add_conditional_edges("response_drafter", should_find_lawyer)
+    if include_draft:
+        graph.add_edge("synthesis", "response_drafter")
+        graph.add_conditional_edges("response_drafter", should_find_lawyer)
+    else:
+        graph.add_conditional_edges("synthesis", should_find_lawyer)
     graph.add_edge("find_lawyer", END)
 
     return graph.compile()
 
 
-app = build_graph()
+app = build_graph(include_draft=True)
+fast_app = build_graph(include_draft=False)
 
 
-def run(letter_text: str) -> AgentState:
-    initial_state: AgentState = {
+def initial_state(letter_text: str) -> AgentState:
+    return {
         "letter_text": letter_text,
         "classification": None,
         "urgency_signal": "medium",
@@ -90,4 +95,16 @@ def run(letter_text: str) -> AgentState:
         "latencies": {},
         "errors": [],
     }
-    return app.invoke(initial_state)
+
+
+def run(letter_text: str) -> AgentState:
+    """Run the full pipeline, including response drafting.
+
+    This keeps the existing CLI/test spine behavior intact.
+    """
+    return app.invoke(initial_state(letter_text))
+
+
+def run_fast(letter_text: str) -> AgentState:
+    """Run the web-first pipeline without blocking on response drafting."""
+    return fast_app.invoke(initial_state(letter_text))

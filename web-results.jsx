@@ -54,7 +54,12 @@ function FindingCard({ id, data }) {
 function WebResults({ sample, showTrace }) {
   const [copied, setCopied] = React.useState(false);
   const [steps, setSteps] = React.useState(() => sample.verdict.next_steps.map(() => false));
+  const [draft, setDraft] = React.useState(sample.draft);
+  const [draftStatus, setDraftStatus] = React.useState(sample.draft ? 'ready' : 'idle');
+  const [draftError, setDraftError] = React.useState('');
+  const [draftLatency, setDraftLatency] = React.useState(sample.latencies?.response_drafter || 0);
   const msFor = (key) => {
+    if (key === 'response_drafter') return draftLatency;
     const value = sample.latencies && sample.latencies[key];
     return Number.isFinite(value) ? Math.max(value, 0) : 0;
   };
@@ -68,13 +73,36 @@ function WebResults({ sample, showTrace }) {
   const urgentDeadlines = (sample.verdict.urgent_deadlines || []).filter(Boolean);
   const primaryDeadline = urgentDeadlines[0] || allDeadlines[0];
 
-  const traceOrder = ['orchestrator', 'risk', 'rights', 'obligations', 'synthesis', 'response_drafter',
-    ...(sample.lawyer ? ['lawyer_finder'] : [])];
+  const traceOrder = ['orchestrator', 'risk', 'rights', 'obligations', 'synthesis',
+    ...(sample.lawyer ? ['lawyer_finder'] : []),
+    ...(draft || draftStatus === 'generating' ? ['response_drafter'] : [])];
   const totalMs = traceOrder.reduce((a, k) => a + msFor(k), 0);
   const maxLat = Math.max(1, ...traceOrder.map(msFor));
 
+  const createEmail = async () => {
+    if (draftStatus === 'generating') return;
+    setDraftStatus('generating');
+    setDraftError('');
+    try {
+      const result = await LetterLens.createDraft(sample);
+      setDraft(result.draft);
+      setDraftLatency(result.latencies?.response_drafter || 0);
+      setDraftStatus('ready');
+    } catch (error) {
+      setDraftError(error.message || 'Could not create the email draft.');
+      setDraftStatus('error');
+    }
+  };
+
+  React.useEffect(() => {
+    if (sample.mode !== 'live' || draft || draftStatus !== 'idle') return undefined;
+    const timer = setTimeout(() => { createEmail(); }, 250);
+    return () => clearTimeout(timer);
+  }, []);
+
   const copyDraft = () => {
-    const text = `Subject: ${sample.draft.subject}\n\n${sample.draft.body}`;
+    if (!draft) return;
+    const text = `Subject: ${draft.subject}\n\n${draft.body}`;
     if (navigator.clipboard) navigator.clipboard.writeText(text).catch(() => {});
     setCopied(true); setTimeout(() => setCopied(false), 1800);
   };
@@ -140,17 +168,30 @@ function WebResults({ sample, showTrace }) {
           </div>
         </div>
         <div>
-          <div className="sec-head"><h3>A reply you can send</h3><span className="count">draft</span></div>
-          <div className="draft">
-            <div className="draft-top">
-              <div className="s">
-                <span className="eyebrow">Subject</span>
-                <b>{sample.draft.subject}</b>
+          <div className="sec-head"><h3>A reply you can send</h3><span className="count">{draft ? 'draft' : 'on demand'}</span></div>
+          {draft ? (
+            <div className="draft">
+              <div className="draft-top">
+                <div className="s">
+                  <span className="eyebrow">Subject</span>
+                  <b>{draft.subject}</b>
+                </div>
+                <button className="draft-copy" onClick={copyDraft}>{copied ? I.check : I.copy} {copied ? 'Copied' : 'Copy'}</button>
               </div>
-              <button className="draft-copy" onClick={copyDraft}>{copied ? I.check : I.copy} {copied ? 'Copied' : 'Copy'}</button>
+              <div className="draft-body">{draft.body}</div>
             </div>
-            <div className="draft-body">{sample.draft.body}</div>
-          </div>
+          ) : (
+            <div className="draft draft-empty">
+              <div className="draft-empty-icon">{draftStatus === 'generating' ? I.activity : I.pen}</div>
+              <b>{draftStatus === 'generating' ? 'Creating your email draft…' : 'Create the email when you need it'}</b>
+              <p>The triage results are ready first. The drafting agent runs separately so you can start reviewing without waiting.</p>
+              {draftError && <small>{draftError}</small>}
+              <button className="draft-create" disabled={draftStatus === 'generating'} onClick={createEmail}>
+                {draftStatus === 'generating' ? I.activity : I.pen}
+                {draftStatus === 'generating' ? 'Creating email…' : draftStatus === 'error' ? 'Try again' : 'Create email'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -213,7 +254,7 @@ function WebResults({ sample, showTrace }) {
               <span className="ms">{Math.round(msFor(k))}ms</span>
             </div>
           ))}
-          <div className="trace-total"><span>orchestrator → specialists → synthesis → draft{sample.lawyer ? ' → referral' : ''}</span><b>{(totalMs / 1000).toFixed(2)}s total</b></div>
+          <div className="trace-total"><span>orchestrator → specialists → synthesis{sample.lawyer ? ' → referral' : ''}{draft ? ' · draft generated separately' : ''}</span><b>{(totalMs / 1000).toFixed(2)}s total</b></div>
         </div>
       )}
 
