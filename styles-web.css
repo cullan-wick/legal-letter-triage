@@ -287,6 +287,12 @@ button { font-family: inherit; }
 .finding-card.expanded .fchev { color: var(--ag-ink); transform: rotate(90deg); }
 .conf { font-family: var(--mono); font-size: 9px; letter-spacing: .06em; text-transform: uppercase; padding: 3px 7px; border-radius: 6px; background: var(--surface-2); color: var(--ink-soft); }
 .fsummary { font-size: 13px; line-height: 1.45; color: var(--ink-soft); margin-bottom: 0; }
+.finding-card:not(.expanded) .fsummary {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
 .fmore { display: flex; align-items: center; margin-top: 12px; font-family: var(--mono); font-size: 10.5px; color: var(--ag-ink); }
 .finding-details { margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--border); }
 .kp { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 0; }
