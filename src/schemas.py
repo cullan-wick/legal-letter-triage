@@ -54,6 +54,12 @@ class AgentState(TypedDict):
     letter_text: str
     classification: Optional[dict]
     urgency_signal: str              # "low"|"medium"|"high" — set by orchestrator, read by synthesis
+    # Per-specialist staging slots: each parallel specialist writes its OWN key so there is
+    # never a concurrent write to a shared channel. The `collect` node folds these into
+    # specialist_findings, which keeps synthesis/drafter/lawyer_finder unchanged.
+    risk_finding: Optional[dict]
+    rights_finding: Optional[dict]
+    obligations_finding: Optional[dict]
     specialist_findings: list[dict]
     verdict: Optional[dict]
     draft_response: Optional[dict]
