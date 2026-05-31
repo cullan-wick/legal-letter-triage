@@ -70,9 +70,7 @@ def _is_real_deadline(deadline: str) -> bool:
 def _real_deadlines(specialist_findings: list[dict]) -> list[str]:
     deadlines: list[str] = []
     seen: set[str] = set()
-    for finding in specialist_findings:
-        if finding.get("error"):
-            continue
+    for finding in _successful_findings(specialist_findings):
         for deadline in finding.get("deadlines", []):
             if not isinstance(deadline, str) or not _is_real_deadline(deadline):
                 continue
@@ -84,11 +82,14 @@ def _real_deadlines(specialist_findings: list[dict]) -> list[str]:
     return deadlines
 
 
+def _successful_findings(specialist_findings: list[dict]) -> list[dict]:
+    return [finding for finding in specialist_findings if not finding.get("error")]
+
+
 def _has_signal(specialist_findings: list[dict], terms: tuple[str, ...]) -> bool:
     combined = " ".join(
         " ".join([finding.get("summary", ""), *finding.get("key_points", [])]).lower()
-        for finding in specialist_findings
-        if not finding.get("error")
+        for finding in _successful_findings(specialist_findings)
     )
     return any(term in combined for term in terms)
 
@@ -97,7 +98,13 @@ def _letter_context(letter_type: str) -> dict[str, str]:
     return LETTER_TYPE_CONTEXT.get(_normalize_letter_type(letter_type), LETTER_TYPE_CONTEXT["general"])
 
 
-def _reason(verdict: str, letter_type: str, deadlines: list[str], needs_lawyer: bool) -> str:
+def _reason(
+    verdict: str,
+    letter_type: str,
+    deadlines: list[str],
+    needs_lawyer: bool,
+    specialist_review_incomplete: bool,
+) -> str:
     context = _letter_context(letter_type)
     subject = context["summary_subject"]
 
@@ -106,6 +113,8 @@ def _reason(verdict: str, letter_type: str, deadlines: list[str], needs_lawyer: 
             return f"This {subject} appears time-sensitive because it includes a deadline: {deadlines[0]}."
         return f"This {subject} appears time-sensitive and should be reviewed quickly."
     if verdict == "consult_lawyer":
+        if specialist_review_incomplete:
+            return f"Specialist checks for this {subject} were incomplete, so the recipient should get legal guidance before acting."
         if needs_lawyer:
             return f"This {subject} may be manageable, but at least one specialist flagged that legal guidance is needed."
         if deadlines:
@@ -146,9 +155,11 @@ def synthesize(
     letter_type = classification.get("letter_type", "general")
     normalized_letter_type = _normalize_letter_type(letter_type)
     urgency = classification.get("urgency", urgency_signal)
-    successful_findings = [f for f in specialist_findings if not f.get("error")]
+    successful_findings = _successful_findings(specialist_findings)
     specialist_review_incomplete = not successful_findings
-    needs_lawyer = any(f.get("needs_lawyer") for f in successful_findings)
+    needs_lawyer = any(
+        finding.get("needs_lawyer") for finding in successful_findings
+    )
     deadlines = _real_deadlines(specialist_findings)
     has_urgent_signal = _has_signal(
         specialist_findings,
@@ -169,7 +180,6 @@ def synthesize(
     ):
         verdict = "urgent"
     elif specialist_review_incomplete:
-        # All specialists failed — safe default is to recommend legal review
         verdict = "consult_lawyer"
     elif needs_lawyer or has_urgent_signal:
         verdict = "consult_lawyer"
@@ -180,7 +190,7 @@ def synthesize(
 
     output = SynthesisOutput(
         verdict=verdict,
-        reason=_reason(verdict, letter_type, deadlines, needs_lawyer),
+        reason=_reason(verdict, letter_type, deadlines, needs_lawyer, specialist_review_incomplete),
         next_steps=_next_steps(verdict, letter_type, deadlines),
         urgent_deadlines=deadlines if verdict == "urgent" else [],
     )

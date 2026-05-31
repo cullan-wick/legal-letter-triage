@@ -105,6 +105,25 @@ class SynthesisTest(unittest.TestCase):
 
         self.assertEqual(verdict["verdict"], "handle_yourself")
 
+    def test_all_failed_specialists_route_to_consult_lawyer(self) -> None:
+        verdict = synthesize(
+            {"letter_type": "general", "jurisdiction": "unknown", "urgency": "medium"},
+            [
+                finding("risk", summary="Risk assessment could not be completed.", error="risk failed"),
+                finding("rights", summary="Rights review could not be completed.", error="rights failed"),
+                finding(
+                    "obligations",
+                    summary="Obligations could not be extracted.",
+                    deadlines=["Unable to extract deadlines automatically; review the letter for dates."],
+                    error="obligations failed",
+                ),
+            ],
+        )
+
+        self.assertEqual(verdict["verdict"], "consult_lawyer")
+        self.assertIn("Specialist checks", verdict["reason"])
+        self.assertEqual(verdict["urgent_deadlines"], [])
+
     def test_synthesize_verdict_updates_state_without_live_model(self) -> None:
         state = {
             "letter_text": "Sample employment warning.",
@@ -124,20 +143,6 @@ class SynthesisTest(unittest.TestCase):
 
         self.assertEqual(result["verdict"]["verdict"], "consult_lawyer")
         self.assertIn("synthesis", result["latencies"])
-
-
-    def test_all_failed_specialists_route_to_consult_lawyer(self) -> None:
-        """When every specialist errors, fall back to consult_lawyer — never handle_yourself."""
-        verdict = synthesize(
-            {"letter_type": "general", "jurisdiction": "unknown", "urgency": "medium"},
-            [
-                finding("risk", error="API error"),
-                finding("rights", error="API error"),
-                finding("obligations", error="API error"),
-            ],
-        )
-        self.assertEqual(verdict["verdict"], "consult_lawyer")
-        self.assertIn("consult_lawyer", verdict["verdict"])
 
 
 if __name__ == "__main__":
